@@ -3,7 +3,7 @@
 > **Bài làm cá nhân.** Trả lời bằng lời của chính bạn, dựa trên những gì bạn
 > quan sát được khi chạy code — không sao chép đáp án của người khác.
 >
-> Cách trả lời: thay dòng `> *Câu trả lời của bạn*` bằng câu trả lời.
+> Cách trả lời: thay dòng placeholder bằng câu trả lời của chính bạn.
 > `grade.py` đếm số câu đã trả lời (15 điểm cho 10 câu).
 >
 > Họ và tên: Đỗ Hoàng Nam Khánh  Mã học viên: 2A202602423
@@ -194,4 +194,20 @@ Ghi lại **một** lỗi bạn gặp khi deploy lên cloud (build fail, health 
 timeout, sai REDIS_URL, app không đọc `$PORT`...): thông báo lỗi là gì, bạn
 tìm ra nguyên nhân bằng cách nào, và sửa ra sao?
 
-> *Câu trả lời của bạn*
+> Lỗi mình gặp: `REDIS_URL` trỏ sai (chưa trỏ tới đúng service Redis). Biểu hiện
+> quan sát được:
+>
+> - `GET /health` → **200** `{"status":"ok",...}` (vì cố tình không chạm Redis)
+> - `GET /ready` → **503** `{"status":"not ready","redis":false}`
+> - `POST /ask` với key đúng → **500 Internal Server Error** (vì
+>   `store.get_history` không kết nối được Redis)
+>
+> Mình tái hiện đúng chuỗi lỗi này khi chạy container với
+> `REDIS_URL=redis://127.0.0.1:1/0`. Cách tìm nguyên nhân: `/health` vẫn 200
+> nhưng `/ready` báo `redis:false` → khoanh vùng ngay vào dependency Redis chứ
+> không phải code app; đọc log container thì thấy lỗi kết nối Redis.
+>
+> Cách sửa: đặt lại `REDIS_URL` trỏ đúng service Redis (trên Railway là tham
+> chiếu `${{ redis.REDIS_URL }}`), sau đó deploy lại. Kết quả: `/ready` trả 200
+> `{"status":"ready","redis":true}` và `/ask` trả 200. Bài học: tách `/ready`
+> khỏi `/health` chính là thứ giúp chẩn đoán nhanh lỗi dependency.
